@@ -37,40 +37,40 @@ const parseAgentOptionsFromEnv = (): ChatAgentOption[] => {
   try {
     const parsed = JSON.parse(sanitized) as unknown;
     if (Array.isArray(parsed)) {
-      return parsed
-        .map((entry, index) => {
-          if (!entry || typeof entry !== "object") {
-            return null;
-          }
-          const record = entry as Record<string, unknown>;
-          const workflowId =
-            typeof record.workflowId === "string"
-              ? record.workflowId.trim()
-              : "";
-          if (!workflowId) {
-            return null;
-          }
-          const label =
-            typeof record.label === "string" && record.label.trim()
-              ? record.label.trim()
-              : `Agent ${index + 1}`;
-          const id =
-            typeof record.id === "string" && record.id.trim()
-              ? record.id.trim()
-              : buildAgentId(label, index);
-          const description =
-            typeof record.description === "string" &&
-            record.description.trim()
-              ? record.description.trim()
-              : undefined;
-          return {
-            id,
-            label,
-            workflowId,
-            description,
-          };
-        })
-        .filter((option): option is ChatAgentOption => Boolean(option));
+      const options: ChatAgentOption[] = [];
+      parsed.forEach((entry, index) => {
+        if (!entry || typeof entry !== "object") {
+          return;
+        }
+        const record = entry as Record<string, unknown>;
+        const workflowId =
+          typeof record.workflowId === "string"
+            ? record.workflowId.trim()
+            : "";
+        if (!workflowId) {
+          return;
+        }
+        const label =
+          typeof record.label === "string" && record.label.trim()
+            ? record.label.trim()
+            : `Agent ${index + 1}`;
+        const id =
+          typeof record.id === "string" && record.id.trim()
+            ? record.id.trim()
+            : buildAgentId(label, index);
+        const description =
+          typeof record.description === "string" &&
+          record.description.trim()
+            ? record.description.trim()
+            : undefined;
+        options.push({
+          id,
+          label,
+          workflowId,
+          description,
+        });
+      });
+      return options;
     }
   } catch {
     // Ignore JSON parsing errors and fall back to the pipe-delimited format.
@@ -81,23 +81,24 @@ const parseAgentOptionsFromEnv = (): ChatAgentOption[] => {
     .map((token) => token.trim())
     .filter(Boolean);
 
-  return entries
-    .map((entry, index) => {
-      const [labelPart, workflowIdPart, descriptionPart] = entry
-        .split("|")
-        .map((part) => part.trim());
-      if (!workflowIdPart) {
-        return null;
-      }
-      const label = labelPart || `Agent ${index + 1}`;
-      return {
-        id: buildAgentId(label, index),
-        label,
-        workflowId: workflowIdPart,
-        description: descriptionPart || undefined,
-      };
-    })
-    .filter((option): option is ChatAgentOption => Boolean(option));
+  const options: ChatAgentOption[] = [];
+  entries.forEach((entry, index) => {
+    const [labelPart, workflowIdPart, descriptionPart] = entry
+      .split("|")
+      .map((part) => part.trim());
+    if (!workflowIdPart) {
+      return;
+    }
+    const label = labelPart || `Agent ${index + 1}`;
+    options.push({
+      id: buildAgentId(label, index),
+      label,
+      workflowId: workflowIdPart,
+      description: descriptionPart || undefined,
+    });
+  });
+
+  return options;
 };
 
 const envAgentOptions = parseAgentOptionsFromEnv();
