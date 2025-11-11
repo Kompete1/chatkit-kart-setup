@@ -261,49 +261,45 @@ export function ChatKitPanel({
     [isWorkflowConfigured, setErrorState]
   );
 
-  const chatkit = useChatKit({
+  const { control, setComposerValue, focusComposer } = useChatKit({
     locale: "de-DE",
     api: { getClientSecret },
-    theme: {
-      colorScheme: "light",
-      ...getThemeConfig("light"),
-    },
-    startScreen: {
-      greeting: GREETING,
-      prompts: STARTER_PROMPTS,
-    },
+    theme: { colorScheme: "light", ...getThemeConfig("light") },
+    startScreen: { greeting: GREETING, prompts: STARTER_PROMPTS },
     composer: {
       placeholder: PLACEHOLDER_INPUT,
-      attachments: {
-        // Enable attachments
-        enabled: true,
+      attachments: { enabled: true },
+    },
+    // ⬇️ NEW: handle widget button "In Eingabefeld übernehmen"
+    widgets: {
+      onAction: async (action) => {
+        if (action.type === "prompt.insert") {
+          const text =
+            typeof action.values?.prompt_text === "string"
+              ? action.values.prompt_text
+              : "";
+          if (text.trim()) {
+            await setComposerValue({ text });
+            await focusComposer();
+          }
+        }
       },
     },
-    threadItemActions: {
-      feedback: false,
-    },
-    onClientTool: async (invocation: {
-      name: string;
-      params: Record<string, unknown>;
-    }) => {
+    threadItemActions: { feedback: false },
+    onClientTool: async (invocation: { name: string; params: Record<string, unknown> }) => {
       if (invocation.name === "switch_theme") {
         const requested = invocation.params.theme;
         if (requested === "light") {
-          if (isDev) {
-            console.debug("[ChatKitPanel] switch_theme", requested);
-          }
-          onThemeRequest(requested);
+          if (isDev) console.debug("[ChatKitPanel] switch_theme", requested);
+          onThemeRequest(requested as ColorScheme);
           return { success: true };
         }
         return { success: false };
       }
-
       if (invocation.name === "record_fact") {
         const id = String(invocation.params.fact_id ?? "");
         const text = String(invocation.params.fact_text ?? "");
-        if (!id || processedFacts.current.has(id)) {
-          return { success: true };
-        }
+        if (!id || processedFacts.current.has(id)) return { success: true };
         processedFacts.current.add(id);
         void onWidgetAction({
           type: "save",
@@ -312,24 +308,14 @@ export function ChatKitPanel({
         });
         return { success: true };
       }
-
       return { success: false };
     },
-    onResponseEnd: () => {
-      onResponseEnd();
-    },
-    onResponseStart: () => {
-      setErrorState({ integration: null, retryable: false });
-    },
-    onThreadChange: () => {
-      processedFacts.current.clear();
-    },
-    onError: ({ error }: { error: unknown }) => {
-      // Note that Chatkit UI handles errors for your users.
-      // Thus, your app code doesn't need to display errors on UI.
-      console.error("ChatKit error", error);
-    },
+    onResponseEnd: () => { onResponseEnd(); },
+    onResponseStart: () => { setErrorState({ integration: null, retryable: false }); },
+    onThreadChange: () => { processedFacts.current.clear(); },
+    onError: ({ error }: { error: unknown }) => { console.error("ChatKit error", error); },
   });
+  
 
   const activeError = errors.session ?? errors.integration;
   const blockingError = errors.script ?? activeError;
