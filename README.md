@@ -65,6 +65,19 @@ Before deploying your app, you need to verify the domain by adding it to the [Do
 - Adjust starter prompts, greeting text, [chatkit theme](https://chatkit.studio/playground), and placeholder copy in [`lib/config.ts`](lib/config.ts).
 - Update the event handlers inside [`components/.tsx`](components/ChatKitPanel.tsx) to integrate with your product analytics or storage.
 
+## Troubleshooting
+
+### Performance Issues
+
+ChatKit uses an iframe-based architecture to maintain security isolation for API keys and credentials. While this ensures your sensitive data stays protected, it relies on cross-frame messaging (postMessage) which can be affected by browser extensions.
+
+**If you experience slow performance or input lag:**
+
+- **Browser Extensions**: Some extensions (content blockers, privacy tools, developer tools) can interfere with cross-frame communication. Try testing in an incognito window with extensions disabled to rule out interference.
+- **Memory Usage**: Monitor browser memory in Task Manager (Shift+Esc in Chrome). Abnormal memory growth may indicate a configuration issue - please [report it](https://github.com/openai/openai-chatkit-starter-app/issues).
+
+**For production applications**: Consider implementing a server-side integration with OpenAI's API instead of the embedded ChatKit widget. This avoids the iframe architecture entirely and provides better performance and control. See [Advanced Self-Hosting Examples](https://github.com/openai/openai-chatkit-advanced-samples) for guidance.
+
 ## References
 
 - [ChatKit JavaScript Library](http://openai.github.io/chatkit-js/)

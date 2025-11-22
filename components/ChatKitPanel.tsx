@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import {
   STARTER_PROMPTS,
@@ -261,27 +261,8 @@ export function ChatKitPanel({
     [isWorkflowConfigured, setErrorState]
   );
 
-  const chatkit = useChatKit({
-    api: { getClientSecret },
-    theme: {
-      colorScheme: theme,
-      ...getThemeConfig(theme),
-    },
-    startScreen: {
-      greeting: GREETING,
-      prompts: STARTER_PROMPTS,
-    },
-    composer: {
-      placeholder: PLACEHOLDER_INPUT,
-      attachments: {
-        // Enable attachments
-        enabled: true,
-      },
-    },
-    threadItemActions: {
-      feedback: false,
-    },
-    onClientTool: async (invocation: {
+  const handleClientTool = useCallback(
+    async (invocation: {
       name: string;
       params: Record<string, unknown>;
     }) => {
@@ -314,34 +295,71 @@ export function ChatKitPanel({
 
       return { success: false };
     },
-    onResponseEnd: () => {
-      onResponseEnd();
-    },
-    onResponseStart: () => {
-      setErrorState({ integration: null, retryable: false });
-    },
-    onThreadChange: () => {
-      processedFacts.current.clear();
-    },
-    onError: ({ error }: { error: unknown }) => {
-      // Note that Chatkit UI handles errors for your users.
-      // Thus, your app code doesn't need to display errors on UI.
-      console.error("ChatKit error", error);
-    },
+    [onThemeRequest, onWidgetAction]
+  );
+
+  const handleResponseStart = useCallback(() => {
+    setErrorState({ integration: null, retryable: false });
+  }, [setErrorState]);
+
+  const handleThreadChange = useCallback(() => {
+    processedFacts.current.clear();
+  }, []);
+
+  const handleError = useCallback(({ error }: { error: unknown }) => {
+    console.error("ChatKit error", error);
+  }, []);
+
+  const themeConfig = useMemo(
+    () => ({
+      colorScheme: theme,
+      ...getThemeConfig(theme),
+    }),
+    [theme]
+  );
+
+  const apiConfig = useMemo(() => ({ getClientSecret }), [getClientSecret]);
+
+  const startScreenConfig = useMemo(
+    () => ({
+      greeting: GREETING,
+      prompts: STARTER_PROMPTS,
+    }),
+    []
+  );
+
+  const composerConfig = useMemo(
+    () => ({
+      placeholder: PLACEHOLDER_INPUT,
+      attachments: {
+        enabled: true,
+      },
+    }),
+    []
+  );
+
+  const threadItemActionsConfig = useMemo(
+    () => ({
+      feedback: false,
+    }),
+    []
+  );
+
+  const chatkit = useChatKit({
+    api: apiConfig,
+    theme: themeConfig,
+    startScreen: startScreenConfig,
+    composer: composerConfig,
+    threadItemActions: threadItemActionsConfig,
+    onClientTool: handleClientTool,
+    onResponseEnd: onResponseEnd,
+    onResponseStart: handleResponseStart,
+    onThreadChange: handleThreadChange,
+    onError: handleError,
   });
 
   const activeError = errors.session ?? errors.integration;
   const blockingError = errors.script ?? activeError;
-
-  if (isDev) {
-    console.debug("[ChatKitPanel] render state", {
-      isInitializingSession,
-      hasControl: Boolean(chatkit.control),
-      scriptStatus,
-      hasError: Boolean(blockingError),
-      workflowId: WORKFLOW_ID,
-    });
-  }
 
   return (
     <div className="relative pb-8 flex h-[90vh] w-full rounded-2xl flex-col overflow-hidden bg-white shadow-sm transition-colors dark:bg-slate-900">
