@@ -281,39 +281,59 @@ export function ChatKitPanel({
     threadItemActions: {
       feedback: false,
     },
-    onClientTool: async (invocation: {
-      name: string;
-      params: Record<string, unknown>;
-    }) => {
-      if (invocation.name === "switch_theme") {
-        const requested = invocation.params.theme;
-        if (requested === "light" || requested === "dark") {
-          if (isDev) {
-            console.debug("[ChatKitPanel] switch_theme", requested);
-          }
-          onThemeRequest(requested);
-          return { success: true };
-        }
-        return { success: false };
-      }
 
-      if (invocation.name === "record_fact") {
-        const id = String(invocation.params.fact_id ?? "");
-        const text = String(invocation.params.fact_text ?? "");
-        if (!id || processedFacts.current.has(id)) {
-          return { success: true };
-        }
-        processedFacts.current.add(id);
-        void onWidgetAction({
-          type: "save",
-          factId: id,
-          factText: text.replace(/\s+/g, " ").trim(),
-        });
-        return { success: true };
+onClientTool: async (invocation: {
+  name: string;
+  params: Record<string, unknown>;
+}) => {
+  if (invocation.name === "switch_theme") {
+    const requested = invocation.params.theme;
+    if (requested === "light" || requested === "dark") {
+      if (isDev) {
+        console.debug("[ChatKitPanel] switch_theme", requested);
       }
+      onThemeRequest(requested);
+      return { success: true };
+    }
+    return { success: false };
+  }
 
-      return { success: false };
-    },
+  if (invocation.name === "record_fact") {
+    const id = String(invocation.params.fact_id ?? "");
+    const text = String(invocation.params.fact_text ?? "");
+    if (!id || processedFacts.current.has(id)) {
+      return { success: true };
+    }
+    processedFacts.current.add(id);
+    void onWidgetAction({
+      type: "save",
+      factId: id,
+      factText: text.replace(/\s+/g, " ").trim(),
+    });
+    return { success: true };
+  }
+
+  // Add these handlers for your exercise functions
+  if (invocation.name === "get_exercise_details") {
+    const exerciseId = String(invocation.params.exerciseId ?? "");
+    if (isDev) {
+      console.debug("[ChatKitPanel] get_exercise_details", exerciseId);
+    }
+    return getExerciseInstructions(exerciseId);
+  }
+
+  if (invocation.name === "get_next_exercise") {
+    if (isDev) {
+      console.debug("[ChatKitPanel] get_next_exercise");
+    }
+    return getRandomExercise();
+  }
+
+  return { success: false };
+},
+
+
+    
     onResponseEnd: () => {
       onResponseEnd();
     },
@@ -415,4 +435,75 @@ function extractErrorDetail(
   }
 
   return fallback;
+
+  }
+
+const EXERCISES = [
+  {
+    exerciseId: 'towel-tug-to-target',
+    exerciseTitle: 'Towel Tug to Target',
+    exerciseSummary: 'The dog bites the towel\'s edge and drags it across the floor toward a designated spot.',
+    instructions: [
+      'Lay a towel flat on the floor',
+      'Show your dog the towel and get them excited',
+      'Let them grab and bite the towel edge',
+      'Gently drag it toward a target spot (like a mat)',
+      'Reward when they reach the target',
+      'Repeat 5-10 times'
+    ]
+  },
+  {
+    exerciseId: 'hand-target',
+    exerciseTitle: 'Hand Target',
+    exerciseSummary: 'Teach your dog to touch your palm with their nose to build focus and engagement.',
+    instructions: [
+      'Hold your palm open at nose height',
+      'Wait for your dog to touch it with their nose',
+      'Mark the moment (yes!) and reward immediately',
+      'Repeat until they understand',
+      'Gradually increase distance'
+    ]
+  },
+  {
+    exerciseId: 'spin',
+    exerciseTitle: 'Spin',
+    exerciseSummary: 'Teach your dog to spin in circles on command.',
+    instructions: [
+      'Hold a treat close to your dog\'s nose',
+      'Move it in a circle around their head',
+      'As they follow, they\'ll naturally spin',
+      'Mark and reward the completed spin',
+      'Practice 5-10 reps per session'
+    ]
+  }
+];
+
+function getExerciseInstructions(exerciseId: string) {
+  const exercise = EXERCISES.find(e => e.exerciseId === exerciseId);
+  
+  if (!exercise) {
+    return { error: 'Exercise not found' };
+  }
+  
+  return {
+    exerciseId: exercise.exerciseId,
+    exerciseTitle: exercise.exerciseTitle,
+    exerciseSummary: exercise.exerciseSummary,
+    instructions: exercise.instructions,
+    tips: [
+      'Start with short sessions (5-10 minutes)',
+      'Use high-value treats your dog loves',
+      'Practice in a quiet space with few distractions'
+    ]
+  };
+}
+
+function getRandomExercise() {
+  const random = EXERCISES[Math.floor(Math.random() * EXERCISES.length)];
+  return {
+    exerciseId: random.exerciseId,
+    exerciseTitle: random.exerciseTitle,
+    exerciseSummary: random.exerciseSummary
+  };
+}
 }
