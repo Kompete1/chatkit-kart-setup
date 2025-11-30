@@ -351,29 +351,39 @@ export function ChatKitPanel({
       feedback: false,
     },
 
-    widgets: {
-      onAction: async (action, item) => {
-        console.log("Widget action fired:", action, item);
+
+
     
-        // Get instructions for the currently shown exercise
-        if (action.type === "exercise.details") {
-          await chatkit.sendUserMessage({
-            text: `Get instructions for exercise ${action.payload?.id ?? ""}`,
-            reply: item?.id ?? undefined, // threads it under the card (optional)
-          });
-          return;
-        }
-    
-        // Ask for a new shaping idea
-        if (action.type === "exercise.next") {
-          await chatkit.sendUserMessage({
-            text: "Next idea",
-            reply: item?.id ?? undefined,
-          });
-          return;
-        }
-      },
-    },
+
+widgets: {
+  onAction: async (action, item) => {
+    console.log("Widget action fired:", action, item);
+
+    const widgetState = (item?.state ?? {}) as any;
+    const exerciseId = widgetState.exerciseId as string | undefined;
+
+    if (action.type === "exercise.details") {
+      // User clicked "Get instructions"
+      await chatkit.sendUserMessage({
+        text: exerciseId
+          ? `Get instructions for exercise ${exerciseId}`
+          : "Get instructions for this exercise",
+        reply: item?.id ?? undefined,
+      });
+      return;
+    }
+
+    if (action.type === "exercise.next") {
+      // User clicked "Next idea"
+      await chatkit.sendUserMessage({
+        text: "Next idea",
+        reply: item?.id ?? undefined,
+      });
+      return;
+    }
+  },
+},
+
     
 
     
