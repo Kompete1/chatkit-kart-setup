@@ -32,3 +32,54 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.title-glow {
+  background: linear-gradient(120deg, #5ee7df 0%, #9b65ff 45%, #fc6c8f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.45em;
+  animation: titleGlow 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 16px rgba(155, 101, 255, 0.5));
+}
+
+.tagline-shimmer {
+  background: linear-gradient(
+    115deg,
+    rgba(59, 130, 246, 0.95) 0%,
+    rgba(14, 165, 233, 0.95) 30%,
+    rgba(236, 72, 153, 0.95) 65%,
+    rgba(244, 244, 245, 0.9) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.6em;
+  background-size: 200% 100%;
+  animation: taglineShimmer 6s linear infinite;
+  display: inline-block;
+  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.4));
+  text-shadow: 0 0 8px rgba(12, 12, 16, 0.4);
+}
+
+@keyframes titleGlow {
+  0% {
+    filter: drop-shadow(0 0 6px rgba(115, 243, 255, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(244, 114, 182, 0.6));
+  }
+  100% {
+    filter: drop-shadow(0 0 6px rgba(115, 243, 255, 0.35));
+  }
+}
+
+@keyframes taglineShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
