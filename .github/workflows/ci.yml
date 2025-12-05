@@ -70,14 +70,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache-dependency-path: ${{ matrix.project }}/package-lock.json
           cache: "npm"
 
       - name: Install dependencies
+        working-directory: ${{ matrix.project }}
         run: npm ci
 
       - name: Run ESLint
+        working-directory: ${{ matrix.project }}
         run: npm run lint
 
       - name: Run build
+        working-directory: ${{ matrix.project }}
         run: npm run build
   

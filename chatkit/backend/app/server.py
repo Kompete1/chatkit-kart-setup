@@ -6,13 +6,9 @@ import logging
 from typing import Any, AsyncIterator
 
 from agents import Runner
-from chatkit.agents import stream_agent_response
+from chatkit.agents import simple_to_agent_input, stream_agent_response
 from chatkit.server import ChatKitServer
 from chatkit.types import (
-    Action,
-    Attachment,
-    StreamOptions,
-    WidgetItem,
     ThreadMetadata,
     ThreadStreamEvent,
     UserMessageItem,
@@ -20,7 +16,6 @@ from chatkit.types import (
 
 from .assistant import StarterAgentContext, assistant_agent
 from .memory_store import MemoryStore
-from .thread_item_converter import BasicThreadItemConverter
 
 logging.basicConfig(level=logging.INFO)
 
@@ -30,19 +25,7 @@ class StarterChatServer(ChatKitServer[dict[str, Any]]):
 
     def __init__(self) -> None:
         self.store: MemoryStore = MemoryStore()
-        self.thread_item_converter = BasicThreadItemConverter()
         super().__init__(self.store)
-
-    # -- ChatKit hooks ----------------------------------------------------
-    async def action(
-        self,
-        thread: ThreadMetadata,
-        action: Action[str, Any],
-        sender: WidgetItem | None,
-        context: dict[str, Any],
-    ) -> AsyncIterator[ThreadStreamEvent]:
-        # No custom actions in the starter demo.
-        return
 
     async def respond(
         self,
@@ -59,7 +42,7 @@ class StarterChatServer(ChatKitServer[dict[str, Any]]):
             context=context,
         )
         items = list(reversed(items_page.data))
-        input_items = await self.thread_item_converter.to_agent_input(items)
+        input_items = await simple_to_agent_input(items)
 
         agent_context = StarterAgentContext(
             thread=thread,
@@ -77,13 +60,7 @@ class StarterChatServer(ChatKitServer[dict[str, Any]]):
             yield event
         return
 
-    def get_stream_options(
-        self, thread: ThreadMetadata, context: dict[str, Any]
-    ) -> StreamOptions:
-        # Allow cancelling mid-stream; the in-memory store will keep partial history.
-        return StreamOptions(allow_cancel=True)
-
 
 def create_chatkit_server() -> StarterChatServer | None:
-    """Return a configured ChatKit server instance if dependencies are available."""
+    """Return a configured ChatKit server instance."""
     return StarterChatServer()
