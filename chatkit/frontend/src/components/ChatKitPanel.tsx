@@ -1,5 +1,3 @@
-"use client";
-
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { CHATKIT_API_DOMAIN_KEY, CHATKIT_API_URL } from "../lib/config";
 

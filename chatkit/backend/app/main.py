@@ -1,14 +1,13 @@
-"""FastAPI entrypoint wiring the ChatKit server endpoint."""
+"""FastAPI entrypoint for the ChatKit starter backend."""
 
 from __future__ import annotations
 
 from chatkit.server import StreamingResult
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import Response, StreamingResponse
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
-from .server import StarterChatServer, create_chatkit_server
+from .server import StarterChatServer
 
 app = FastAPI(title="ChatKit Starter API")
 
@@ -20,27 +19,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_chatkit_server: StarterChatServer | None = create_chatkit_server()
-
-
-def get_chatkit_server() -> StarterChatServer:
-    if _chatkit_server is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "ChatKit dependencies are missing. Install the ChatKit Python "
-                "package to enable the conversational endpoint."
-            ),
-        )
-    return _chatkit_server
+chatkit_server = StarterChatServer()
 
 
 @app.post("/chatkit")
-async def chatkit_endpoint(
-    request: Request, server: StarterChatServer = Depends(get_chatkit_server)
-) -> Response:
+async def chatkit_endpoint(request: Request) -> Response:
+    """Proxy the ChatKit web component payload to the server implementation."""
     payload = await request.body()
-    result = await server.process(payload, {"request": request})
+    result = await chatkit_server.process(payload, {"request": request})
+
     if isinstance(result, StreamingResult):
         return StreamingResponse(result, media_type="text/event-stream")
     if hasattr(result, "json"):

@@ -4,6 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import { URL } from "node:url";
 
 export default [
   {
@@ -11,11 +12,12 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ["**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        projectService: true,
+        project: ["./tsconfig.json"],
+        tsconfigRootDir: new URL(".", import.meta.url).pathname,
         ecmaFeatures: { jsx: true },
       },
       globals: { ...globals.browser, ...globals.node },
@@ -32,6 +34,23 @@ export default [
         "warn",
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    files: ["vite.config.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: ["./tsconfig.node.json"],
+        tsconfigRootDir: new URL(".", import.meta.url).pathname,
+      },
+      globals: { ...globals.node },
+    },
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      ...tseslint.configs.recommended.rules,
     },
   },
 ];

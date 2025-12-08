@@ -1,27 +1,22 @@
-"""ChatKit server wired to a minimal streamed assistant."""
+"""ChatKit server that streams responses from a single assistant."""
 
 from __future__ import annotations
 
-import logging
 from typing import Any, AsyncIterator
 
 from agents import Runner
 from chatkit.agents import simple_to_agent_input, stream_agent_response
 from chatkit.server import ChatKitServer
-from chatkit.types import (
-    ThreadMetadata,
-    ThreadStreamEvent,
-    UserMessageItem,
-)
+from chatkit.types import ThreadMetadata, ThreadStreamEvent, UserMessageItem
 
 from .assistant import StarterAgentContext, assistant_agent
 from .memory_store import MemoryStore
 
-logging.basicConfig(level=logging.INFO)
+MAX_RECENT_ITEMS = 30
 
 
 class StarterChatServer(ChatKitServer[dict[str, Any]]):
-    """ChatKit server that streams responses from a single assistant agent."""
+    """Server implementation that keeps conversation state in memory."""
 
     def __init__(self) -> None:
         self.store: MemoryStore = MemoryStore()
@@ -33,16 +28,15 @@ class StarterChatServer(ChatKitServer[dict[str, Any]]):
         item: UserMessageItem | None,
         context: dict[str, Any],
     ) -> AsyncIterator[ThreadStreamEvent]:
-        # Load recent items so the agent sees the conversation history.
         items_page = await self.store.load_thread_items(
             thread.id,
             after=None,
-            limit=30,
+            limit=MAX_RECENT_ITEMS,
             order="desc",
             context=context,
         )
         items = list(reversed(items_page.data))
-        input_items = await simple_to_agent_input(items)
+        agent_input = await simple_to_agent_input(items)
 
         agent_context = StarterAgentContext(
             thread=thread,
@@ -52,15 +46,9 @@ class StarterChatServer(ChatKitServer[dict[str, Any]]):
 
         result = Runner.run_streamed(
             assistant_agent,
-            input_items,
+            agent_input,
             context=agent_context,
         )
 
         async for event in stream_agent_response(agent_context, result):
             yield event
-        return
-
-
-def create_chatkit_server() -> StarterChatServer | None:
-    """Return a configured ChatKit server instance."""
-    return StarterChatServer()

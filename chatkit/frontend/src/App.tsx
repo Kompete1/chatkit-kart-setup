@@ -1,6 +1,4 @@
-"use client";
-
-import { ChatKitPanel } from "../components/ChatKitPanel";
+import { ChatKitPanel } from "./components/ChatKitPanel";
 
 export default function App() {
   return (
