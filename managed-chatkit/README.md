@@ -25,7 +25,10 @@ What happens:
 - (optional) `CHATKIT_API_BASE` or `VITE_CHATKIT_API_BASE` (defaults to `https://api.openai.com`)
 - (optional) `VITE_API_URL` (override the dev proxy target for `/api`)
 
-Set the env vars in your shell (or process manager) before running. Use a
+Set the env vars in your shell (or process manager) before running. You can
+also drop them in `.env.local` files at `managed-chatkit/.env.local` **or**
+`managed-chatkit/frontend/.env.local` (Vite will read either location). Restart
+the dev server after editing env files. Use a
 workflow id from Agent Builder (starts with `wf_...`) and an API key from the
 same project and organization.
 
