@@ -1,13 +1,19 @@
 const readEnvString = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
 
-export const workflowId = (() => {
-  const id = readEnvString(import.meta.env.VITE_CHATKIT_WORKFLOW_ID);
-  if (!id || id.startsWith("wf_replace")) {
-    throw new Error("Set VITE_CHATKIT_WORKFLOW_ID in your .env file.");
-  }
-  return id;
-})();
+const rawWorkflowId = import.meta.env.VITE_CHATKIT_WORKFLOW_ID;
+export const workflowId = readEnvString(rawWorkflowId);
+export const workflowIdError =
+  !workflowId || workflowId.startsWith("wf_replace")
+    ? "Set VITE_CHATKIT_WORKFLOW_ID in your .env file (repo root or frontend/.env.local)."
+    : null;
+
+if (workflowId) {
+  // Helpful debug log to confirm Vite is reading env vars.
+  console.info("[chatkit] Using workflow id from env:", workflowId);
+} else {
+  console.warn("[chatkit] Missing workflow id. Raw env value:", rawWorkflowId);
+}
 
 export function createClientSecretFetcher(
   workflow: string,

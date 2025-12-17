@@ -14,7 +14,15 @@ if [ ! -d ".venv" ]; then
   python -m venv .venv
 fi
 
-source .venv/bin/activate
+if [ -f ".venv/bin/activate" ]; then
+  source ".venv/bin/activate"
+elif [ -f ".venv/Scripts/activate" ]; then
+  source ".venv/Scripts/activate"
+else
+  echo "Could not find venv activate script in .venv/bin or .venv/Scripts"
+  exit 1
+fi
+
 
 echo "Installing backend deps (editable) ..."
 pip install -e . >/dev/null

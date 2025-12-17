@@ -35,6 +35,8 @@ yarn-error.log*g
 !.env.example
 /backend/.env*
 /backend/.venv
+/backend/.env.local
+.env.local
 
 # typescript
 *.tsbuildinfog
