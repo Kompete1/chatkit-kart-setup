@@ -1,7 +1,12 @@
 import react from "@vitejs/plugin-react-swc";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 
-const apiTarget = process.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+export default defineConfig(({ mode }) => {
+  // Load env vars from both the frontend dir and the repo root so either
+  // location works for Vite-prefixed values.
+  const rootEnv = loadEnv(mode, path.resolve(__dirname, ".."), "");
+  const localEnv = loadEnv(mode, __dirname, "");
+  const mergedEnv = { ...rootEnv, ...localEnv, ...process.env };
 
 export default defineConfig({
   // Load env files from the frontend directory (so .env.local here is honored)
@@ -16,5 +21,5 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
+  };
 });
