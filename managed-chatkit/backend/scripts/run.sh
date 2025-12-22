@@ -14,7 +14,17 @@ if [ ! -d ".venv" ]; then
   python -m venv .venv
 fi
 
-source .venv/bin/activate
+# Activate venv (supports Unix and Windows Git Bash)
+if [ -f ".venv/bin/activate" ]; then
+  # shellcheck disable=SC1091
+  source .venv/bin/activate
+elif [ -f ".venv/Scripts/activate" ]; then
+  # shellcheck disable=SC1091
+  source .venv/Scripts/activate
+else
+  echo "Virtualenv not found. Create it with 'python -m venv .venv' (or 'py -3 -m venv .venv' on Windows) inside backend/ then rerun."
+  exit 1
+fi
 
 echo "Installing backend deps (editable) ..."
 pip install -e . >/dev/null

@@ -18,6 +18,13 @@ SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30  # 30 days
 
 app = FastAPI(title="Managed ChatKit Session API")
 
+DEFAULT_STATE_VARIABLES: Mapping[str, str] = {
+    "track": "Zwartkops",
+    "kart_class": "Senior Max",
+    "weather": "hot",
+    "tyre_condition": "new",
+}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,6 +53,7 @@ async def create_session(request: Request) -> JSONResponse:
 
     user_id, cookie_value = resolve_user(request.cookies)
     api_base = chatkit_api_base()
+    state_variables = resolve_state_variables(body)
 
     try:
         async with httpx.AsyncClient(base_url=api_base, timeout=10.0) as client:
@@ -56,7 +64,13 @@ async def create_session(request: Request) -> JSONResponse:
                     "OpenAI-Beta": "chatkit_beta=v1",
                     "Content-Type": "application/json",
                 },
-                json={"workflow": {"id": workflow_id}, "user": user_id},
+                json={
+                    "workflow": {
+                        "id": workflow_id,
+                        "state_variables": state_variables,
+                    },
+                    "user": user_id,
+                },
             )
     except httpx.RequestError as error:
         return respond(
@@ -140,6 +154,20 @@ def resolve_workflow_id(body: Mapping[str, Any]) -> str | None:
     if workflow_id and isinstance(workflow_id, str) and workflow_id.strip():
         return workflow_id.strip()
     return None
+
+
+def resolve_state_variables(body: Mapping[str, Any]) -> Mapping[str, str]:
+    state_body = body.get("state_variables", {})
+    state_body = state_body if isinstance(state_body, Mapping) else {}
+
+    resolved: dict[str, str] = {}
+    for key, default_value in DEFAULT_STATE_VARIABLES.items():
+        raw_value = state_body.get(key, body.get(key))
+        if isinstance(raw_value, str) and raw_value.strip():
+            resolved[key] = raw_value.strip()
+        else:
+            resolved[key] = default_value
+    return resolved
 
 
 def resolve_user(cookies: Mapping[str, str]) -> tuple[str, str | None]:
