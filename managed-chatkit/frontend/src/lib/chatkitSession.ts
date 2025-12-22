@@ -15,17 +15,38 @@ if (workflowId) {
   console.warn("[chatkit] Missing workflow id. Raw env value:", rawWorkflowId);
 }
 
+export type WorkflowState = {
+  track?: string;
+  kart_class?: string;
+  weather?: string;
+  tyre_condition?: string;
+};
+
 export function createClientSecretFetcher(
   workflow: string,
-  endpoint = "/api/create-session"
+  endpoint = "/api/create-session",
+  stateVariables?: WorkflowState
 ) {
   return async (currentSecret: string | null) => {
     if (currentSecret) return currentSecret;
 
+    const state =
+      stateVariables && typeof stateVariables === "object"
+        ? {
+            track: stateVariables.track,
+            kart_class: stateVariables.kart_class,
+            weather: stateVariables.weather,
+            tyre_condition: stateVariables.tyre_condition,
+          }
+        : undefined;
+
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workflow: { id: workflow } }),
+      body: JSON.stringify({
+        workflow: { id: workflow },
+        state_variables: state,
+      }),
     });
 
     const payload = (await response.json().catch(() => ({}))) as {
