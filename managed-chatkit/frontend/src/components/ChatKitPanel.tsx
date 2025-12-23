@@ -4,6 +4,7 @@ import {
   WorkflowState,
   createClientSecretFetcher,
   workflowId,
+  workflowIdError,
 } from "../lib/chatkitSession";
 
 type ChatKitPanelProps = {
@@ -19,12 +20,17 @@ export function ChatKitPanel({
 }: ChatKitPanelProps) {
   const getClientSecret = useMemo(
     () =>
-      createClientSecretFetcher(
-        workflowId,
-        "/api/create-session",
-        stateVariables
-      ),
+      workflowId
+        ? createClientSecretFetcher(
+            workflowId,
+            "/api/create-session",
+            stateVariables
+          )
+        : async () => {
+            throw new Error(workflowIdError ?? "Missing workflow id");
+          },
     [
+      workflowId,
       stateVariables?.kart_class,
       stateVariables?.track,
       stateVariables?.tyre_condition,
@@ -37,7 +43,7 @@ export function ChatKitPanel({
   });
 
   // Send the setup prompt when requestToken changes
-  const lastRequestToken = useRef<number | undefined>();
+  const lastRequestToken = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (
@@ -57,6 +63,10 @@ export function ChatKitPanel({
         // swallow errors; user can retry manually
       });
   }, [chatkit, requestToken, setupPrompt]);
+
+  if (workflowIdError) {
+    return <ErrorBanner message={workflowIdError} />;
+  }
 
   return (
     <div className="flex h-[90vh] w-full rounded-2xl bg-white shadow-sm transition-colors dark:bg-slate-900">
