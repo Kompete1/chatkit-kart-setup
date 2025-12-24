@@ -2,11 +2,11 @@
   "name": "managed-chatkit",
   "private": true,
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names backend,frontend \"npm run backend\" \"npm run frontend\"",
+    "dev": "node ./node_modules/concurrently/dist/bin/concurrently.js --kill-others-on-fail --names backend,frontend \"npm run backend\" \"npm run frontend\"",
     "frontend": "npm --prefix frontend install && npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend install && npm --prefix frontend run build",
     "frontend:lint": "npm --prefix frontend install && npm --prefix frontend run lint",
-    "backend": "./backend/scripts/run.sh"
+    "backend": "node ./backend/scripts/run.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

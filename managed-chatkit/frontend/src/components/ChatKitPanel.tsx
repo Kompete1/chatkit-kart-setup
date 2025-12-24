@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import {
   WorkflowState,
@@ -6,6 +6,16 @@ import {
   workflowId,
   workflowIdError,
 } from "../lib/chatkitSession";
+
+type KartSetup = {
+  header: string;
+  axle_ride_height: string;
+  caster_camber: string;
+  carburetor_main_jet: string;
+  needle_position: string;
+  tyre_pressure: string;
+  gear_ratio: string;
+};
 
 type ChatKitPanelProps = {
   stateVariables?: WorkflowState;
@@ -38,9 +48,67 @@ export function ChatKitPanel({
     ]
   );
 
+  const [kartSetup, setKartSetup] = useState<KartSetup | null>(null);
+  const [kartSetupLoading, setKartSetupLoading] = useState(false);
+  const [kartSetupError, setKartSetupError] = useState<string | null>(null);
+
+  const pendingRequestToken = useRef<number | null>(null);
+  const requestStateVariables = useRef<WorkflowState | undefined>(undefined);
+
+  const fetchKartSetup = async (variables?: WorkflowState) => {
+    setKartSetupLoading(true);
+    setKartSetupError(null);
+    try {
+      const response = await fetch("/api/kart-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state_variables: variables ?? {} }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as
+        | KartSetup
+        | { error?: string; detail?: string };
+
+      if (!response.ok) {
+        const message =
+          "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "detail" in payload && typeof payload.detail === "string"
+              ? payload.detail
+            : "Failed to fetch kart setup";
+        throw new Error(message);
+      }
+
+      if (
+        !payload ||
+        typeof payload !== "object" ||
+        !("header" in payload) ||
+        typeof (payload as KartSetup).header !== "string"
+      ) {
+        throw new Error("Unexpected response from kart setup endpoint");
+      }
+
+      setKartSetup(payload as KartSetup);
+    } catch (error) {
+      setKartSetupError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setKartSetupLoading(false);
+    }
+  };
+
   const chatkit = useChatKit({
     api: { getClientSecret },
+    onResponseEnd: () => {
+      const token = pendingRequestToken.current;
+      if (token === null) return;
+      if (requestToken === undefined || requestToken === null) return;
+      if (token !== requestToken) return;
+      pendingRequestToken.current = null;
+      void fetchKartSetup(requestStateVariables.current);
+    },
   });
+
+  const { sendUserMessage } = chatkit;
 
   // Send the setup prompt when requestToken changes
   const lastRequestToken = useRef<number | undefined>(undefined);
@@ -50,27 +118,93 @@ export function ChatKitPanel({
       requestToken === undefined ||
       requestToken === null ||
       !setupPrompt ||
-      !chatkit.sendUserMessage
+      !sendUserMessage
     )
       return;
 
     if (lastRequestToken.current === requestToken) return;
     lastRequestToken.current = requestToken;
+    pendingRequestToken.current = requestToken;
+    requestStateVariables.current = stateVariables;
 
-    chatkit
-      .sendUserMessage({ text: setupPrompt })
+    sendUserMessage({ text: setupPrompt })
       .catch(() => {
         // swallow errors; user can retry manually
       });
-  }, [chatkit, requestToken, setupPrompt]);
+  }, [requestToken, sendUserMessage, setupPrompt, stateVariables]);
 
   if (workflowIdError) {
     return <ErrorBanner message={workflowIdError} />;
   }
 
   return (
-    <div className="flex h-[90vh] w-full rounded-2xl bg-white shadow-sm transition-colors dark:bg-slate-900">
-      <ChatKit control={chatkit.control} className="h-full w-full" />
+    <div className="flex h-[90vh] w-full flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm transition-colors dark:bg-slate-900">
+      <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-100 dark:bg-slate-950 dark:ring-slate-800">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Kart Setup Card
+            </p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
+              {kartSetup?.header ?? "Request a setup to see recommendations"}
+            </p>
+            {kartSetupLoading ? (
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Fetching setup details…
+              </p>
+            ) : kartSetupError ? (
+              <p className="mt-1 text-sm text-red-700 dark:text-red-400">
+                {kartSetupError}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Updated when the assistant finishes responding.
+              </p>
+            )}
+          </div>
+          {kartSetup ? (
+            <button
+              type="button"
+              onClick={() => void fetchKartSetup(stateVariables)}
+              className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 focus:ring-offset-slate-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white dark:focus:ring-slate-600 dark:focus:ring-offset-slate-950"
+              disabled={kartSetupLoading}
+            >
+              Refresh
+            </button>
+          ) : null}
+        </div>
+
+        {kartSetup ? (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <Field label="Axle & ride height" value={kartSetup.axle_ride_height} />
+            <Field label="Caster / camber" value={kartSetup.caster_camber} />
+            <Field
+              label="Carburetor main jet"
+              value={kartSetup.carburetor_main_jet}
+            />
+            <Field label="Needle position" value={kartSetup.needle_position} />
+            <Field label="Tyre pressure" value={kartSetup.tyre_pressure} />
+            <Field label="Gear ratio" value={kartSetup.gear_ratio} />
+          </div>
+        ) : null}
+      </div>
+
+      <div className="min-h-0 flex-1">
+        <ChatKit control={chatkit.control} className="h-full w-full" />
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-100 dark:bg-slate-900 dark:ring-slate-800">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-50">
+        {value}
+      </p>
     </div>
   );
 }
