@@ -45,8 +45,21 @@ if [ -z "${OPENAI_API_KEY:-}" ]; then
   exit 1
 fi
 
-export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+UNAME_OUT="$(uname -s 2>/dev/null || echo '')"
+APP_DIR="$PROJECT_ROOT"
+if echo "$UNAME_OUT" | grep -qiE "mingw|msys|cygwin"; then
+  PROJECT_ROOT_PY="$PROJECT_ROOT"
+  if command -v cygpath >/dev/null 2>&1; then
+    PROJECT_ROOT_PY="$(cygpath -w "$PROJECT_ROOT")"
+  elif pwd -W >/dev/null 2>&1; then
+    PROJECT_ROOT_PY="$(pwd -W)"
+  fi
+  APP_DIR="$PROJECT_ROOT_PY"
+  export PYTHONPATH="$PROJECT_ROOT_PY${PYTHONPATH:+;$PYTHONPATH}"
+else
+  export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+fi
 
 echo "Starting Managed ChatKit backend on http://127.0.0.1:8000 ..."
-exec uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+exec python -m uvicorn --app-dir "$APP_DIR" app.main:app --reload --host 127.0.0.1 --port 8000
 

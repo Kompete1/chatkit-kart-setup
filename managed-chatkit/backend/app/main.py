@@ -11,6 +11,7 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 DEFAULT_CHATKIT_BASE = "https://api.openai.com"
 SESSION_COOKIE_NAME = "chatkit_session_id"
@@ -105,6 +106,121 @@ async def create_session(request: Request) -> JSONResponse:
         200,
         cookie_value,
     )
+
+
+class KartSetupRequest(BaseModel):
+    state_variables: Mapping[str, str] | None = None
+
+
+@app.post("/api/kart-setup")
+async def kart_setup(payload: KartSetupRequest) -> JSONResponse:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return respond({"error": "Missing OPENAI_API_KEY environment variable"}, 500)
+
+    state_variables = resolve_state_variables(
+        {"state_variables": payload.state_variables or {}}
+    )
+
+    api_base = chatkit_api_base()
+    model = os.getenv("OPENAI_KART_SETUP_MODEL") or "gpt-4o-mini"
+    system_prompt = (
+        "You are a professional kart racing engineer. "
+        "Return kart setup recommendations as strict JSON."
+    )
+    user_prompt = (
+        "Provide a kart setup recommendation for the following session. "
+        "Return ONLY JSON with keys: header, axle_ride_height, caster_camber, carburetor_main_jet, needle_position, tyre_pressure, gear_ratio. "
+        "Each value must be a concise string. "
+        f"track={state_variables.get('track')}; "
+        f"kart_class={state_variables.get('kart_class')}; "
+        f"weather={state_variables.get('weather')}; "
+        f"tyre_condition={state_variables.get('tyre_condition')}."
+    )
+
+    try:
+        async with httpx.AsyncClient(base_url=api_base, timeout=20.0) as client:
+            upstream = await client.post(
+                "/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.4,
+                },
+            )
+    except httpx.RequestError as error:
+        return respond({"error": f"Failed to reach OpenAI API: {error}"}, 502)
+
+    completion = parse_json(upstream)
+    if not upstream.is_success:
+        message = None
+        if isinstance(completion, Mapping):
+            error_obj = completion.get("error")
+            if isinstance(error_obj, Mapping):
+                message = error_obj.get("message")
+            elif isinstance(error_obj, str):
+                message = error_obj
+        message = message or upstream.reason_phrase or "Failed to generate kart setup"
+        return respond({"error": message}, upstream.status_code)
+
+    content: str | None = None
+    try:
+        choices = completion.get("choices")
+        if isinstance(choices, list) and choices:
+            first = choices[0]
+            if isinstance(first, Mapping):
+                message_obj = first.get("message")
+                if isinstance(message_obj, Mapping):
+                    raw = message_obj.get("content")
+                    if isinstance(raw, str):
+                        content = raw
+    except Exception:
+        content = None
+
+    if not content:
+        return respond({"error": "Missing completion content"}, 502)
+
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError:
+        stripped = content.strip()
+        if stripped.startswith("```") and stripped.endswith("```"):
+            stripped = "\n".join(stripped.splitlines()[1:-1]).strip()
+        try:
+            parsed = json.loads(stripped)
+        except json.JSONDecodeError:
+            return respond({"error": "Model did not return valid JSON", "raw": content}, 502)
+
+    if not isinstance(parsed, Mapping):
+        return respond({"error": "Model returned unexpected JSON", "raw": content}, 502)
+
+    required_keys = [
+        "header",
+        "axle_ride_height",
+        "caster_camber",
+        "carburetor_main_jet",
+        "needle_position",
+        "tyre_pressure",
+        "gear_ratio",
+    ]
+    normalized: dict[str, str] = {}
+    for key in required_keys:
+        value = parsed.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return respond(
+                {"error": f"Missing or invalid field: {key}", "raw": content},
+                502,
+            )
+        normalized[key] = value.strip()
+
+    return respond(normalized, 200)
 
 
 def respond(
