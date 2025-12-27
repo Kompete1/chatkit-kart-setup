@@ -153,7 +153,7 @@ export function KartSetupPage() {
                 <img
                   src={trackImage}
                   alt={`${track} track`}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain object-center"
                   loading="lazy"
                 />
               </div>
